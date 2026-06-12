@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<entity-engine-xml>
+    <!-- ===== Demo types: a fulfillment order is NOT a sale =====
+         The 3PL ships on behalf of a merchant; it never invoices or takes payment (the
+         merchant bills its own end consumer, in the merchant's own system). OFBiz keys its
+         order-to-cash side effects on SALES_ORDER (payment) and SALES_SHIPMENT (invoice),
+         so we model the order as FULFILLMENT_ORDER and ship on a custom FULFIL_SHIPMENT
+         type. Result: pick/issue/ship still run, but no invoice, payment, or GL posting
+         is ever triggered. FULFILLMENT_ORDER is standalone (NOT a child of SALES_ORDER) so
+         no sales-typed logic re-attaches via parent-type checks. -->
+    <OrderType orderTypeId="FULFILLMENT_ORDER" hasTable="N"
+            description="Fulfillment Order (3PL ships on behalf of a merchant; no billing)"/>
+    <ShipmentType shipmentTypeId="FULFIL_SHIPMENT" hasTable="N"
+            description="3PL Fulfillment Shipment (outbound; not a sales shipment, so no invoicing)"/>
+
+    <!-- ===== Operator (the 3PL) + shared warehouse ===== -->
+    <Party partyId="W3PL_OPS" partyTypeId="PARTY_GROUP"/>
+    <PartyGroup partyId="W3PL_OPS" groupName="Demo 3PL Operations"/>
+    <Facility facilityId="W3PL_WHSE" facilityTypeId="WAREHOUSE"
+            ownerPartyId="W3PL_OPS" facilityName="Demo 3PL Warehouse"
+            defaultInventoryItemTypeId="NON_SERIAL_INV_ITEM"/>
+
+    <!-- ===== Carrier + self-contained shipment method ===== -->
+    <Party partyId="W3PL_CARRIER" partyTypeId="PARTY_GROUP"/>
+    <PartyGroup partyId="W3PL_CARRIER" groupName="Demo Carrier"/>
+    <PartyRole partyId="W3PL_CARRIER" roleTypeId="CARRIER"/>
+    <ShipmentMethodType shipmentMethodTypeId="W3PL_GRND" description="Demo Ground"/>
+    <!-- OrderItemShipGroup has an FK (shipmentMethodTypeId, carrierPartyId, carrierRoleTypeId)
+         -> CarrierShipmentMethod, so the carrier<->method link must exist. -->
+    <CarrierShipmentMethod partyId="W3PL_CARRIER" roleTypeId="CARRIER"
+            shipmentMethodTypeId="W3PL_GRND" sequenceNumber="1"/>
+
+    <!-- ===== Merchant A: ACME ===== -->
+    <Party partyId="W3PL_ACME" partyTypeId="PARTY_GROUP"/>
+    <PartyGroup partyId="W3PL_ACME" groupName="ACME Brands"/>
+    <PartyRole partyId="W3PL_ACME" roleTypeId="FULFILL_API_CLIENT"/>
+    <!-- The order's bill-from party (= payToPartyId). The bi plugin's order-fact ECA
+         reads baseCurrencyUomId on order approval; inventory issuance at ship time
+         computes COGS from cogsMethodId. Both must be set or those ECAs fail. -->
+    <PartyAcctgPreference partyId="W3PL_ACME" baseCurrencyUomId="USD" cogsMethodId="COGS_AVG_COST"/>
+    <ProductStore productStoreId="W3PL_ACME_STORE" storeName="ACME Fulfillment Account"
+            payToPartyId="W3PL_ACME" inventoryFacilityId="W3PL_WHSE"
+            oneInventoryFacility="Y" checkInventory="Y" reserveInventory="Y"
+            requireInventory="N" reserveOrderEnumId="INVRO_FIFO_REC"
+            defaultCurrencyUomId="USD"/>
+    <ProductStoreFacility productStoreId="W3PL_ACME_STORE" facilityId="W3PL_WHSE"
+            fromDate="2026-01-01 00:00:00.000"/>
+    <ProductStoreRole partyId="W3PL_ACME" roleTypeId="FULFILL_API_CLIENT"
+            productStoreId="W3PL_ACME_STORE" fromDate="2026-01-01 00:00:00.000"/>
+    <ProdCatalog prodCatalogId="W3PL_ACME_CTLG" catalogName="ACME Catalog"/>
+    <ProductStoreCatalog productStoreId="W3PL_ACME_STORE" prodCatalogId="W3PL_ACME_CTLG"
+            fromDate="2026-01-01 00:00:00.000"/>
+    <ProductCategory productCategoryId="W3PL_ACME_ALL" productCategoryTypeId="CATALOG_CATEGORY"
+            categoryName="ACME All Products"/>
+    <ProdCatalogCategory prodCatalogId="W3PL_ACME_CTLG" productCategoryId="W3PL_ACME_ALL"
+            prodCatalogCategoryTypeId="PCCT_BROWSE_ROOT" fromDate="2026-01-01 00:00:00.000"/>
+    <!-- loop SKU: NO inventory (received in the walkthrough) -->
+    <Product productId="W3PL_ACME_SHIRT" productTypeId="FINISHED_GOOD"
+            internalName="ACME Shirt M" isVirtual="N" isVariant="N"/>
+    <GoodIdentification goodIdentificationTypeId="SKU" productId="W3PL_ACME_SHIRT"
+            idValue="ACME-SHIRT-M"/>
+    <ProductCategoryMember productCategoryId="W3PL_ACME_ALL" productId="W3PL_ACME_SHIRT"
+            fromDate="2026-01-01 00:00:00.000"/>
+    <!-- secondary SKU: standing inventory for read-back realism -->
+    <Product productId="W3PL_ACME_MUG" productTypeId="FINISHED_GOOD"
+            internalName="ACME Mug" isVirtual="N" isVariant="N"/>
+    <GoodIdentification goodIdentificationTypeId="SKU" productId="W3PL_ACME_MUG"
+            idValue="ACME-MUG"/>
+    <ProductCategoryMember productCategoryId="W3PL_ACME_ALL" productId="W3PL_ACME_MUG"
+            fromDate="2026-01-01 00:00:00.000"/>
+    <InventoryItem inventoryItemId="W3PL_ACME_INV_MUG" inventoryItemTypeId="NON_SERIAL_INV_ITEM"
+            productId="W3PL_ACME_MUG" facilityId="W3PL_WHSE"
+            ownerPartyId="W3PL_ACME" currencyUomId="USD" unitCost="0"/>
+    <InventoryItemDetail inventoryItemId="W3PL_ACME_INV_MUG" inventoryItemDetailSeqId="0001"
+            effectiveDate="2026-01-01 00:00:00.000" quantityOnHandDiff="100"
+            availableToPromiseDiff="100" accountingQuantityDiff="100"/>
+    <UserLogin userLoginId="acme.api" partyId="W3PL_ACME"
+            currentPassword="{SHA}47ca69ebb4bdc9ae0adec130880165d2cc05db1a" requirePasswordChange="N"/>
+    <UserLoginSecurityGroup userLoginId="acme.api" groupId="FULFILLMENT_API"
+            fromDate="2026-01-01 00:00:00.000"/>
+
+    <!-- ===== Merchant B: GLOBEX (same shared warehouse, own catalog/SKUs) ===== -->
+    <Party partyId="W3PL_GLOBEX" partyTypeId="PARTY_GROUP"/>
+    <PartyGroup partyId="W3PL_GLOBEX" groupName="Globex Corporation"/>
+    <PartyRole partyId="W3PL_GLOBEX" roleTypeId="FULFILL_API_CLIENT"/>
+    <PartyAcctgPreference partyId="W3PL_GLOBEX" baseCurrencyUomId="USD" cogsMethodId="COGS_AVG_COST"/>
+    <ProductStore productStoreId="W3PL_GLOBEX_STORE" storeName="Globex Fulfillment Account"
+            payToPartyId="W3PL_GLOBEX" inventoryFacilityId="W3PL_WHSE"
+            oneInventoryFacility="Y" checkInventory="Y" reserveInventory="Y"
+            requireInventory="N" reserveOrderEnumId="INVRO_FIFO_REC"
+            defaultCurrencyUomId="USD"/>
+    <ProductStoreFacility productStoreId="W3PL_GLOBEX_STORE" facilityId="W3PL_WHSE"
+            fromDate="2026-01-01 00:00:00.000"/>
+    <ProductStoreRole partyId="W3PL_GLOBEX" roleTypeId="FULFILL_API_CLIENT"
+            productStoreId="W3PL_GLOBEX_STORE" fromDate="2026-01-01 00:00:00.000"/>
+    <ProdCatalog prodCatalogId="W3PL_GLOBEX_CTLG" catalogName="Globex Catalog"/>
+    <ProductStoreCatalog productStoreId="W3PL_GLOBEX_STORE" prodCatalogId="W3PL_GLOBEX_CTLG"
+            fromDate="2026-01-01 00:00:00.000"/>
+    <ProductCategory productCategoryId="W3PL_GLOBEX_ALL" productCategoryTypeId="CATALOG_CATEGORY"
+            categoryName="Globex All Products"/>
+    <ProdCatalogCategory prodCatalogId="W3PL_GLOBEX_CTLG" productCategoryId="W3PL_GLOBEX_ALL"
+            prodCatalogCategoryTypeId="PCCT_BROWSE_ROOT" fromDate="2026-01-01 00:00:00.000"/>
+    <Product productId="W3PL_GLOBEX_WIDGET" productTypeId="FINISHED_GOOD"
+            internalName="Globex Widget" isVirtual="N" isVariant="N"/>
+    <GoodIdentification goodIdentificationTypeId="SKU" productId="W3PL_GLOBEX_WIDGET"
+            idValue="GLOBEX-WIDGET"/>
+    <ProductCategoryMember productCategoryId="W3PL_GLOBEX_ALL" productId="W3PL_GLOBEX_WIDGET"
+            fromDate="2026-01-01 00:00:00.000"/>
+    <Product productId="W3PL_GLOBEX_GADGET" productTypeId="FINISHED_GOOD"
+            internalName="Globex Gadget" isVirtual="N" isVariant="N"/>
+    <GoodIdentification goodIdentificationTypeId="SKU" productId="W3PL_GLOBEX_GADGET"
+            idValue="GLOBEX-GADGET"/>
+    <ProductCategoryMember productCategoryId="W3PL_GLOBEX_ALL" productId="W3PL_GLOBEX_GADGET"
+            fromDate="2026-01-01 00:00:00.000"/>
+    <InventoryItem inventoryItemId="W3PL_GLOBEX_INV_GAD" inventoryItemTypeId="NON_SERIAL_INV_ITEM"
+            productId="W3PL_GLOBEX_GADGET" facilityId="W3PL_WHSE"
+            ownerPartyId="W3PL_GLOBEX" currencyUomId="USD" unitCost="0"/>
+    <InventoryItemDetail inventoryItemId="W3PL_GLOBEX_INV_GAD" inventoryItemDetailSeqId="0001"
+            effectiveDate="2026-01-01 00:00:00.000" quantityOnHandDiff="50"
+            availableToPromiseDiff="50" accountingQuantityDiff="50"/>
+    <UserLogin userLoginId="globex.api" partyId="W3PL_GLOBEX"
+            currentPassword="{SHA}47ca69ebb4bdc9ae0adec130880165d2cc05db1a" requirePasswordChange="N"/>
+    <UserLoginSecurityGroup userLoginId="globex.api" groupId="FULFILLMENT_API"
+            fromDate="2026-01-01 00:00:00.000"/>
+</entity-engine-xml>
