@@ -124,10 +124,11 @@ Map runFulfillment3plDemoLoop() {
             .collect { "item ${it.orderItemSeqId} qty ${it.quantity} from inventoryItem ${it.inventoryItemId}" }
     stepLog << "4 PICK: ${pickLines.join('; ')}"
 
-    // ----- Step 5: pack + ship (hand-rolled on FULFIL_SHIPMENT so no SALES_SHIPMENT invoicing) -----
-    // Replicates quickShipEntireOrder's mechanics minus the SALES_SHIPMENT type: create the
-    // shipment, attach the carrier route segment + tracking while it is still editable, issue
-    // each item (creates ItemIssuance + decrements QOH), then ship it.
+    // ----- Steps 5-6: pack & ship (hand-rolled on FULFIL_SHIPMENT so no SALES_SHIPMENT invoicing) -----
+    // Replicates quickShipEntireOrder's mechanics minus the SALES_SHIPMENT type. Order matters:
+    // create the shipment shell (INPUT) first so the carrier route segment + tracking can attach
+    // while it is still editable (logged as step 5), issue each item (ItemIssuance + QOH
+    // decrement), then walk status INPUT -> PACKED -> SHIPPED (logged as step 6).
     Map shipResult = runAsSystem('createShipment', [
             primaryOrderId: orderId, shipmentTypeId: 'FULFIL_SHIPMENT',
             statusId: 'SHIPMENT_INPUT', originFacilityId: facilityId])
@@ -136,9 +137,9 @@ Map runFulfillment3plDemoLoop() {
     }
     String shipmentId = shipResult.shipmentId
 
-    // ----- Step 6: tracking — stamp it at pack time, BEFORE shipping -----
-    // createShipmentRouteSegment is rejected once the shipment is SHIPPED, and carriers
-    // assign the tracking number when the label prints (pre-ship), so we do it here.
+    // Step 5 — tracking: createShipmentRouteSegment is rejected once the shipment is SHIPPED,
+    // and carriers assign the tracking number when the label prints (pre-ship), so we stamp it
+    // here, before shipping.
     String trackingIdNumber = "1ZDEMO${orderId}"
     Map seg = runAsSystem('createShipmentRouteSegment', [
             shipmentId: shipmentId, carrierPartyId: carrierPartyId,
@@ -150,10 +151,14 @@ Map runFulfillment3plDemoLoop() {
     stepLog << "5 TRACKING: segment ${seg.shipmentRouteSegmentId} trackingIdNumber=${trackingIdNumber}"
 
     // Issue each reserved item to the shipment. The SALES one-shot
-    // (issueOrderItemShipGrpInvResToShipment) refuses non-sales orders, so we run the same
-    // three steps it bundles, per reservation: create the shipment item, issue the inventory
-    // item (creates ItemIssuance + decrements QOH via InventoryItemDetail), then release the
-    // reservation so ATP balances back out.
+    // (issueOrderItemShipGrpInvResToShipment) refuses non-sales orders, so per reservation we
+    // do its non-sales subset: create the shipment item (issueOrderItemToShipment), record the
+    // issuance (createItemIssuance), and decrement QOH (createInventoryItemDetail). We do NOT
+    // decrement/remove the OrderItemShipGrpInvRes row the SALES service also touches: ATP was
+    // already reduced at reservation (step 3) and the goods have now shipped, so leaving the
+    // reservation keeps the correct shipped end-state (QOH and ATP both down by the issued qty).
+    // A production path would release it via cancelOrderItemShipGrpInvRes; the demo leaves it as
+    // a documented simplification.
     for (GenericValue res : from('OrderItemShipGrpInvRes').where('orderId', orderId).queryList()) {
         Map shipItem = runAsSystem('issueOrderItemToShipment', [
                 shipmentId: shipmentId, orderId: orderId,
