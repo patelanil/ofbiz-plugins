@@ -18,15 +18,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 <entity-engine-xml>
-    <!-- roleTypeId is field type "id" (max 20 chars); the full name
-         FULFILLMENT_API_CLIENT (22) is shortened to FULFILL_API_CLIENT (18). -->
+    <!-- The demo owns ONLY the FULFILL_API_CLIENT role type — the tenancy-model
+         primitive it uses for the ProductStoreRole grants in ThreePlDemoData.xml. It is
+         a single, stable row that upserts harmlessly if the fulfillment-api plugin
+         (which also references it) is co-loaded. roleTypeId is field type "id" (max 20
+         chars), so the full name FULFILLMENT_API_CLIENT (22) is shortened to
+         FULFILL_API_CLIENT (18).
+
+         The authentication/authorization layer (the FULFILLMENT_API SecurityPermission,
+         SecurityGroup, and client UserLogins) belongs to the fulfillment-api plugin: this
+         demo runs its loop as the `system` user and enforces no API permission, so it
+         neither defines nor needs them. -->
     <RoleType roleTypeId="FULFILL_API_CLIENT" hasTable="N"
             description="Fulfillment API Client (party granted merchant access to a product store)"/>
-
-    <SecurityPermission permissionId="FULFILLMENT_API"
-            description="Permission to call the fulfillment-api merchant-facing services"/>
-    <SecurityGroup groupId="FULFILLMENT_API"
-            description="Fulfillment API client accounts. Carries only the FULFILLMENT_API permission."/>
-    <SecurityGroupPermission groupId="FULFILLMENT_API" permissionId="FULFILLMENT_API"
-            fromDate="2026-01-01 00:00:00.000"/>
 </entity-engine-xml>

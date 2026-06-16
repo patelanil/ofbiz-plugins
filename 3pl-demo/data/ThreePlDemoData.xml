@@ -92,10 +92,6 @@ under the License.
     <InventoryItemDetail inventoryItemId="W3PL_ACME_INV_MUG" inventoryItemDetailSeqId="0001"
             effectiveDate="2026-01-01 00:00:00.000" quantityOnHandDiff="100"
             availableToPromiseDiff="100" accountingQuantityDiff="100"/>
-    <UserLogin userLoginId="acme.api" partyId="W3PL_ACME"
-            currentPassword="{SHA}47ca69ebb4bdc9ae0adec130880165d2cc05db1a" requirePasswordChange="N"/>
-    <UserLoginSecurityGroup userLoginId="acme.api" groupId="FULFILLMENT_API"
-            fromDate="2026-01-01 00:00:00.000"/>
 
     <!-- ===== Merchant B: GLOBEX (same shared warehouse, own catalog/SKUs) ===== -->
     <Party partyId="W3PL_GLOBEX" partyTypeId="PARTY_GROUP"/>
@@ -136,8 +132,4 @@ under the License.
     <InventoryItemDetail inventoryItemId="W3PL_GLOBEX_INV_GAD" inventoryItemDetailSeqId="0001"
             effectiveDate="2026-01-01 00:00:00.000" quantityOnHandDiff="50"
             availableToPromiseDiff="50" accountingQuantityDiff="50"/>
-    <UserLogin userLoginId="globex.api" partyId="W3PL_GLOBEX"
-            currentPassword="{SHA}47ca69ebb4bdc9ae0adec130880165d2cc05db1a" requirePasswordChange="N"/>
-    <UserLoginSecurityGroup userLoginId="globex.api" groupId="FULFILLMENT_API"
-            fromDate="2026-01-01 00:00:00.000"/>
 </entity-engine-xml>

@@ -9,8 +9,10 @@ reproducible service. It is the WMS substrate the `fulfillment-api` plugin sits 
 - **Operator** `W3PL_OPS` running one warehouse `W3PL_WHSE`.
 - **Two merchant clients** — ACME (`W3PL_ACME_STORE`) and Globex (`W3PL_GLOBEX_STORE`)
   — each with its own catalog/SKUs, **commingled inventory** in the shared warehouse
-  (distinguished only by `InventoryItem.ownerPartyId`), and a least-privilege API login
-  (`acme.api` / `globex.api`, password `ofbiz`).
+  (distinguished only by `InventoryItem.ownerPartyId`), and a `ProductStoreRole`
+  (`FULFILL_API_CLIENT`) grant recording its access to its store. (Authentication —
+  the `FULFILLMENT_API` permission and client logins — belongs to the `fulfillment-api`
+  plugin; this demo runs as `system` and seeds no API logins.)
 - Tenancy is entirely stock entities: merchant = PartyGroup, account = ProductStore
   (`payToPartyId` = merchant), access = `ProductStoreRole(FULFILL_API_CLIENT)`,
   isolation = `OrderHeader.productStoreId`.
@@ -39,8 +41,9 @@ has no complete non-sales outbound issuance service).
 ./gradlew "ofbiz --load-data readers=seed,seed-initial,threePlDemo"
 ```
 
-> Co-loading with a built `fulfillment-api` plugin? Comment out the `ThreePlDemoSeed.xml`
-> line in `ofbiz-component.xml` first (the plugin owns those role/permission rows).
+> Co-loading with a built `fulfillment-api` plugin needs no special steps: the demo
+> seeds only the `FULFILL_API_CLIENT` role type (a benign upsert), while the plugin owns
+> the `FULFILLMENT_API` permission, security group, and client logins.
 
 ## Run the loop (the demonstration)
 

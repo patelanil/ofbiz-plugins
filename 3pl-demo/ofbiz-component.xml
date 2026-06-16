@@ -24,12 +24,13 @@ under the License.
 
     <!-- Custom reader name: this demo loads ONLY when explicitly requested via
          readers=threePlDemo, so it never dirties the stock seed/demo data sets.
-         Seed file FIRST (role + security), then the dataset that references them.
+         Seed file FIRST (the FULFILL_API_CLIENT role type), then the dataset that
+         references it.
 
-         Seed-ownership note: when co-loaded with a built fulfillment-api plugin
-         (which owns FULFILL_API_CLIENT and the FULFILLMENT_API permission/group),
-         comment out the ThreePlDemoSeed.xml line below to avoid redundant rows.
-         Standalone (API not built), keep it. -->
+         Seed-ownership: the demo owns only the FULFILL_API_CLIENT role type — a single
+         stable row that upserts harmlessly if the fulfillment-api plugin (which also
+         references it) is co-loaded. The FULFILLMENT_API permission/group and client
+         logins belong to that plugin, not here, so co-loading needs no special steps. -->
     <entity-resource type="data" reader-name="threePlDemo" loader="main" location="data/ThreePlDemoSeed.xml"/>
     <entity-resource type="data" reader-name="threePlDemo" loader="main" location="data/ThreePlDemoData.xml"/>
 
