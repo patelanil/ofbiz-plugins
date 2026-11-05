@@ -49,6 +49,7 @@ Define and implement business logic as reusable, transactional, and securely enf
 ### 2. Service Definition & Registration
 - **Naming**: Use `verbNoun` format for all service names (e.g., `updateExample`, `createOrder`).
 - **In/Out Parameters**: Use `<attribute name="..." mode="IN|OUT|INOUT" type="..." optional="true|false"/>`. NEVER bypass attribute validation by casually omitting them or making them wrongly optional.
+- **Undeclared Keys Are Dropped**: Through `runSync`, the dispatcher calls `makeValidContext` before validation (`ServiceDispatcher`). It keeps only declared parameters, at every nested level, and drops every other key with no error. So "Unknown parameter found" never fires there, and a misspelled key is lost. Mark a field `optional="false"` when the service needs it, so a wrong key fails as a missing field.
 - **Native Contract Types**: Backend/data services should keep OFBiz-native service types such as `Timestamp` and `BigDecimal` in IN/OUT attributes and returned maps.
 - **Type In XML First**: If a service consumes dates, numbers, or booleans, declare them with native OFBiz/Java types in `services.xml` first. Prefer fixing the service contract over keeping Groovy-side parsing code forever.
 - **Auth & Security**: Set `auth="true"` for protected services. ALWAYS implement permission checks (e.g., `<permission-service>`).
